@@ -4,7 +4,9 @@ RaspberryPi、WringPi、科大讯飞(API)、图灵机器人(API)
 # Manual Instruction
 ## 1：condition 
 #### （1）Please ensure that the current Raspberry Pi contains GCC and WringPi Library.
-#### （2）Required Hardware: Sound sensor）、Logitech C270 Cam (with Microphone). As shown in the following figure:（图片1、2）
+#### （2）Required Hardware: Sound sensor）、Logitech C270 Cam (with Microphone). As shown in the following figure:
+![Image text](https://raw.github.com/Voice_Recognition_Control_Robot/photos/voice_detect.jpg)
+![Image text](https://raw.github.com/Voice_Recognition_Control_Robot/photos/Logitech_C270.jpg)
 #### （3）If there is no iFLYTEK account, please go to the website to obtain iFLYTEK developer account(http://www.xfyun.cn/). The same is true for Turing robot interfaces.(http://www.tuling123.com/). In this project I provided my trial account.
 
 
@@ -20,10 +22,12 @@ RaspberryPi、WringPi、科大讯飞(API)、图灵机器人(API)
 #### You need to change the name of the directory to 'VoiceRecognitionControlRobot'.
 #### The running cmd: 
 sudo /home/pi/VoiceRecognitionControlRobot/test
-#### The running result are shown in the picture:(图片3)
+#### The running result are shown in the picture:
+![Image text](https://raw.github.com/Voice_Recognition_Control_Robot/photos/demo.jpg)
 
 # Principle introduction
-## Program flow chart:（图4）
+## Program flow chart:
+![Image text](https://raw.github.com/Voice_Recognition_Control_Robot/photos/principle.png)
 
 
 
