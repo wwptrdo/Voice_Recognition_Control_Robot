@@ -20,7 +20,7 @@ RaspberryPi、WringPi、科大讯飞(API)、图灵机器人(API)
 ## 3：Running
 #### You need to change the name of the directory to 'VoiceRecognitionControlRobot'.
 #### The running cmd: 
-sudo /home/pi/VoiceRecognitionControlRobot/test
+sudo /home/pi/VoiceRecognitionControlRobot/bin/test
 #### The running result are shown in the picture:
 ![demo]( https://github.com/WhisperHear/Voice_Recognition_Control_Robot/blob/master/photos/demo.jpg )
 
