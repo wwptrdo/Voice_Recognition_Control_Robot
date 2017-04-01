@@ -4,8 +4,11 @@ RaspberryPi、WringPi、科大讯飞(API)、图灵机器人(API)
 # Manual Instruction
 ## 1：condition 
 #### （1）Please ensure that the current Raspberry Pi contains GCC and WringPi Library.
-#### （2）Required Hardware: Sound sensor）、Logitech C270 Cam (with Microphone). As shown in the following figure:（图片1、2）
-#### （3）If there is no iFLYTEK account, please go to the website to obtain iFLYTEK developer account(http://www.xfyun.cn/). The same is true for Turing robot interfaces.(http://www.tuling123.com/). In this project I provided my trial account.
+#### （2）Required Hardware: Sound sensor）、Logitech C270 Cam (with Microphone). As shown in the following figure:
+![Logitech_C270](https://github.com/WhisperHear/Voice_Recognition_Control_Robot/blob/master/photos/Logitech_C270.jpg )
+#### （3）The Port Definition of Sound Sensor is in the "voice.h" file.  Please connect the line to the RaspberryPi.
+#### （4）If you use a different microphone, look for the address of the microphone and fill it in the "voice.c" file. And the recording process can be successfully opened.
+#### （5）If there is no iFLYTEK account, please go to the website to obtain iFLYTEK developer account(http://www.xfyun.cn/). The same is true for Turing robot interfaces.(http://www.tuling123.com/). In this project I provided my trial account.
 
 
 ## 2：Compile
@@ -19,13 +22,12 @@ RaspberryPi、WringPi、科大讯飞(API)、图灵机器人(API)
 ## 3：Running
 #### You need to change the name of the directory to 'VoiceRecognitionControlRobot'.
 #### The running cmd: 
-sudo /home/pi/VoiceRecognitionControlRobot/test
-#### The running result are shown in the picture:(图片3)
+sudo /home/pi/VoiceRecognitionControlRobot/bin/test
+#### The running result are shown in the picture:
+![demo]( https://github.com/WhisperHear/Voice_Recognition_Control_Robot/blob/master/photos/demo.jpg )
 
 # Principle introduction
-## Program flow chart:（图4）
+## Program flow chart:
+![principle]( https://github.com/WhisperHear/Voice_Recognition_Control_Robot/blob/master/photos/principle.png )
 
-
-
-
-
+# 
