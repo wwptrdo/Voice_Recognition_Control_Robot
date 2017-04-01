@@ -1,3 +1,12 @@
+/*
+ author: WhisperHear <1348351139@qq.com>
+ date: 2017.04.01
+ brief:
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ version 3 as published by the Free Software Foundation.
+ */
+
 #include "voice/voice.h"
 #include "voice/qisr.h"
 #include "voice/qtts.h"
@@ -14,6 +23,13 @@
 #include <sys/socket.h>
 
 static Voice voice;
+
+/*功能：日志写入*/
+static void show_sys_info(char *src)
+{
+	printf("%s", src);
+	/*在这里添加写入到日志文件的部分！*/
+}
 
 /* 合成的wav声音文件：默认wav音频头部数据 */
 static wave_pcm_hdr default_wav_hdr = 
@@ -33,11 +49,6 @@ static wave_pcm_hdr default_wav_hdr =
 	0  
 };
 
-static void show_sys_info(char *s)
-{
-        printf("%s", s);
-}
-
 static void open_voice_light()
 {
 	digitalWrite(VOICE_LIGHT_PIN, HIGH);	
@@ -48,6 +59,109 @@ static void close_voice_light()
 	digitalWrite(VOICE_LIGHT_PIN, LOW);
 }
 
+static int get_omxplayer_stat()
+{
+        if (!voice.sound_box_ongoing || (kill(voice.omxplayer_pid, 0) == -1) ) //当尚未第一次打开ffserver或者ffserver进程已经不存在
+        {
+                return -1;
+        }
+        else
+                return 0;
+}
+
+static void kill_omxplayer()
+{
+	if (get_omxplayer_stat() == 0)
+	{
+		if ((kill(voice.omxplayer_pid, SIGKILL)) == -1)
+        	{	
+        		return ;  //杀死ffserver进程失败
+        	} 
+		else
+        	{
+        		while (get_omxplayer_stat() == 0)  //杀死成功，等待释放资源
+        		{	
+                		usleep(100);
+                	}
+        	}
+        	return ;  //成功杀死ffmpeg进程
+	}
+}
+
+/*
+void speech_front_hinder()
+{
+	//kill_omxplayer(); //关掉正在播放的语音
+        voice.sound_box_ongoing = TRUE;  //不允许录音
+	pid_t omxplayer_pid;
+        if ((omxplayer_pid = fork()) < 0)
+        {
+                voice.sound_box_ongoing = FALSE;
+                show_sys_info("创建播放音频进程失败！\n");
+                return ;
+        }
+        else if (omxplayer_pid == 0)
+        {
+                show_sys_info("语音输出：正在说话...\n");
+                if (execlp("/bin/bash", "/bin/bash", "-c", "omxplayer --no-osd -o local /home/pi/0_robot_client/wav/sys_voice/front_hinder.wav", NULL) < 0)
+                {
+                        printf("播放声音进程执行失败！\n");
+                }
+        }
+        wait(0); //等待播放进程结束     
+        voice.sound_box_ongoing = FALSE;	
+}
+*/
+
+/*
+void speech_back_hinder()
+{
+	//kill_omxplayer(); //关掉正在播放的语音
+        voice.sound_box_ongoing = TRUE;  //不允许录音
+	pid_t omxplayer_pid;
+        if ((omxplayer_pid = fork()) < 0)
+        {
+                voice.sound_box_ongoing = FALSE;
+                show_sys_info("创建播放音频进程失败！\n");
+                return ;
+        }
+        else if (omxplayer_pid == 0)
+        {
+                show_sys_info("语音输出：正在说话...\n");
+                if (execlp("/bin/bash", "/bin/bash", "-c", "omxplayer --no-osd -o local /home/pi/0_robot_client/wav/sys_voice/back_hinder.wav", NULL) < 0)
+                {
+                        printf("播放声音进程执行失败！\n");
+                }
+        }
+        wait(0); //等待播放进程结束     
+        voice.sound_box_ongoing = FALSE;
+
+}
+
+void speech_hinder()
+{
+	//kill_omxplayer(); //关掉正在播放的语音
+        voice.sound_box_ongoing = TRUE;  //不允许录音
+	pid_t omxplayer_pid;
+        if ((omxplayer_pid = fork()) < 0)
+        {
+                voice.sound_box_ongoing = FALSE;
+                show_sys_info("创建播放音频进程失败！\n");
+                return ;
+        }
+        else if (omxplayer_pid == 0)
+        {
+                show_sys_info("语音输出：正在说话...\n");
+                if (execlp("/bin/bash", "/bin/bash", "-c", "omxplayer --no-osd -o local /home/pi/0_robot_client/wav/sys_voice/hinder.wav", NULL) < 0)
+                {
+                        printf("播放声音进程执行失败！\n");
+                }
+        }
+        wait(0); //等待播放进程结束     
+        voice.sound_box_ongoing = FALSE;	
+}
+
+*/
 
 /*
  *功能：打开蜂鸣器模块
@@ -123,7 +237,10 @@ upload_exit:
 	return ret;
 }
 
-//科大讯飞的识别模块（语音听写）
+/*
+ *功能：科大讯飞的识别模块（语音听写）
+ *说明：将音频文件转换为文字
+ */
 static void run_iat(const char* audio_file, const char* session_begin_params, char *ret)
 {
 	const char*   session_id = NULL;
@@ -282,7 +399,7 @@ iat_exit:
 /*
  *功能：科大讯飞，语音合成，将文本转换为声音
  *参数：src_text:文本
- *      des_path:生成的wav文件路径，例如：/home/pi/4_robot_test/wav/compose_voice_temp/compose_voice.wav
+ *      des_path:生成的wav文件路径，例如：/home/pi/0_robot_client/wav/compose_voice_temp/compose_voice.wav
  *返回值：见科大讯飞手册，失败返回-1
  *注意：我修改了一下，把参数放到这个函数里面了
  */
@@ -369,14 +486,88 @@ int text_to_speech(const char* src_text, const char* des_path)
 }
 
 /*
+ * 功能：speech_robot_condition中的线程处理函数
+ * 缺陷：科大讯飞那边有问题，好像不能直接转换太长的文字，估计是试用账号，有限制
+ */
+/*
+static char condition_text_part1[200];
+static char condition_text_part2[200];
+void* th_speech_robot_condition(void *arg)
+{
+	show_sys_info("自身状态信息：");
+        show_sys_info(condition_text_part1);
+	show_sys_info(condition_text_part2);
+        show_sys_info("\n正在合成音频文件...\n");
+
+        //2、合成语音
+        int ret = MSP_SUCCESS;
+        ret = text_to_speech(condition_text_part1, "/home/pi/0_robot_client/wav/compose_voice_temp/speech_condition_temp_part1.wav");
+        if (MSP_SUCCESS != ret)
+        {
+                printf("语音合成：合成失败，无法输出语音！text_to_speech failed, error code: %d.\n", ret);
+                return (void*)0;
+        }
+	
+	ret = text_to_speech(condition_text_part2, "/home/pi/0_robot_client/wav/compose_voice_temp/speech_condition_temp_part2.wav");
+        if (MSP_SUCCESS != ret)
+        {
+                printf("语音合成：合成失败，无法输出语音！text_to_speech failed, error code: %d.\n", ret);
+                return (void*)0;
+        }
+
+        show_sys_info("音频文件合成完毕，正在准备播放...\n");
+
+        //3、播放语音
+	//kill_omxplayer(); //关掉正在播放的语音
+        voice.sound_box_ongoing = TRUE;  //不允许录音
+	第一段语音
+	pid_t omxplayer_pid;
+        if ((omxplayer_pid = fork()) < 0)
+        {
+                voice.sound_box_ongoing = FALSE;
+                show_sys_info("创建播放音频进程失败！\n");
+                return (void*)0;
+        }
+        else if (omxplayer_pid == 0)
+        {
+                show_sys_info("语音输出：正在说话...\n");
+                if (execlp("/bin/bash", "/bin/bash", "-c", "omxplayer --no-osd -o local /home/pi/0_robot_client/wav/compose_voice_temp/speech_condition_temp_part1.wav", NULL) < 0)
+                {
+                        printf("播放声音进程执行失败！\n");
+                }
+        }
+	wait(0);
+	voice.sound_box_ongoing = TRUE;  //不允许录音
+	if ((omxplayer_pid = fork()) < 0)
+        {
+                voice.sound_box_ongoing = FALSE;
+                show_sys_info("创建播放音频进程失败！\n");
+                return (void*)0;
+        }
+        else if (omxplayer_pid == 0)
+        {
+                show_sys_info("语音输出：正在说话...\n");
+                if (execlp("/bin/bash", "/bin/bash", "-c", "omxplayer --no-osd -o local /home/pi/0_robot_client/wav/compose_voice_temp/speech_condition_temp_part2.wav", NULL) < 0)
+                {
+                        printf("播放声音进程执行失败！\n");
+                }
+        }
+
+        wait(0); //等待播放进程结束     
+        voice.sound_box_ongoing = FALSE;
+	
+	return (void*)0;
+}
+*/
+
+/*
  * 功能：调用图灵机器人接口，发送Post请求，获取返回的智能回复消息
  * 参数：send_text:你说的话；recv_text:机器人回复的话放到recv_text中；code：保存recv_text的类型，具体看图灵机器人官网的API文档
  *                           recv_text_size:保存recv_text的空间大小；recv_code_size: 保存code空间的大小
  * 返回值：成功返回0， 失败返回-1
  * 说明：下面的图灵接口key值（key=44ee05352ba9459aaca3205c421f5e4c）是我自己账户的，每天智能回复的次数有限，请去图灵机器人官网获取更多支持
  */
-
-int smart_chat(char* send_text, char *recv_text, int recv_text_size, char *code, int recv_code_size)
+static int smart_chat(char* send_text, char *recv_text, int recv_text_size, char *code, int recv_code_size)
 {
 	/*步骤1：创建socket*/
         int sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -491,9 +682,8 @@ int smart_chat(char* send_text, char *recv_text, int recv_text_size, char *code,
 }
 
 
-
 /*
- *功能：中断处理函数，在这个函数中进行语音识别
+ *功能：中断处理函数，在这个函数中进行语音识别控制、智能聊天
  *说明：
  *      这个注册的中断处理函数会和main函数并发执行（同时执行，谁也不耽误谁）
  *      当本次中断函数还未执行完毕，这个时候树莓派又触发了一个中断，那么这个后来的中断不会被丢弃，它仍然可以被执行。
@@ -503,9 +693,15 @@ int flag = 1;  //这个voice.recongnition_ongoing标识好像不能关掉在中�
                //所以，定义一个flag好了
 static void voice_recognition_control()
 {
+	if (voice.voice_main_switch == FALSE)  //语音识别未初始化成功，总开关未打开，直接退出！
+	{
+		usleep(100000);
+		return ;
+	}
+
 	if (voice.recongnition_switch == FALSE)
 	{
-		printf("中断未打开，无法开启语音识别！~\n");
+		//printf("中断未打开，无法开启语音识别！~\n");
 		usleep(100000);
 		return ;                 //如果中断未打开，直接退出
 	}
@@ -514,6 +710,12 @@ static void voice_recognition_control()
 		usleep(100000);
 		return ;
 	}
+	if (voice.sound_box_ongoing) //如果当前音箱正在说话，不允许语音识别
+	{
+		usleep(100000);
+		return ;
+	}
+
 	if (flag == 2)       //如果当前是第二个中断，则标识下一个中断为第一个中断后退出             
 	{
 		flag--;
@@ -538,7 +740,6 @@ static void voice_recognition_control()
 
 	char voice_recongnition_cmd[BUFFER_SIZE];
 	pid_t arecord_pid;  //录制音频进程标识
-	pid_t omxplayer_pid; //播放合成的声音的进程标识符
 
 	memset(voice_recongnition_cmd, 0, sizeof(voice_recongnition_cmd));
 	if ((arecord_pid = fork()) < 0)	
@@ -548,21 +749,21 @@ static void voice_recognition_control()
 	}
 	else if (arecord_pid == 0)  //子进程执行录制音频
 	{
+		//kill_omxplayer(); //关掉正在播放的语音
 		open_voice_light();   //打开说话的灯，表示可以说话了
 		show_sys_info("语音控制：正在录音，请说话...\n");
-		if (execlp("/bin/bash", "/bin/bash", "-c", "arecord -Dplughw:CARD=U0x46d0x825 -d 3 -r 16000 -c 1 -t wav -f S16_LE /home/pi/4_robot_test/wav/cmd_voice_temp/voice_cmd.wav", NULL) < 0)
+		if (execlp("/bin/bash", "/bin/bash", "-c", "arecord -Dplughw:CARD=U0x46d0x825 -d 2.5 -r 16000 -c 1 -t wav -f S16_LE /home/pi/VoiceRecognitionControlRobot/wav/cmd_voice_temp/voice_cmd.wav", NULL) < 0)
                 { 
 			show_sys_info("录制音频进程执行失败！\n");      
-                        goto exit_;
                 }
 	}
 	else if (arecord_pid > 0)   //父进程执行
 	{
-		usleep(3200000);   //睡眠3.5s等待录制音频完毕！
+		wait(0); //等待子进程录制完毕！
 		close_voice_light(); //不能说话了，表明此时正在进行识别！
 		show_sys_info("语音控制：正在识别，请等待...\n");
 		//这个地方应该还要加上判断该文件是否存在的代码，以后再加~
-		run_iat("/home/pi/4_robot_test/wav/cmd_voice_temp/voice_cmd.wav", session_begin_params, voice_recongnition_cmd);
+		run_iat("/home/pi/VoiceRecognitionControlRobot/wav/cmd_voice_temp/voice_cmd.wav", session_begin_params, voice_recongnition_cmd);
 		if ((strlen(voice_recongnition_cmd)) <= 0)
 		{
 			show_sys_info("语音识别出错：您没有说话！\n");
@@ -572,11 +773,13 @@ static void voice_recognition_control()
 		{
 			show_sys_info("语音控制：向左看...\n");
 			//cam_turn_point(90, 0);
+			//这个地方添加控制函数
 		}
 		else if (strstr(voice_recongnition_cmd, "前看"))
 		{
 			show_sys_info("语音控制：向前看...\n");
 			//cam_turn_point(0, 0);
+			//这个地方添加控制函数
 		}
 		else if (strstr(voice_recongnition_cmd, "右看"))
 		{
@@ -608,6 +811,16 @@ static void voice_recognition_control()
 			show_sys_info("语音控制：往【左】走...\n");
 			//voice_control_motion(VOICE_CONTROL_LEFT);
 		}
+		else if (strstr(voice_recongnition_cmd, "左拐"))
+                {
+                        show_sys_info("语音控制：往【左】走...\n");
+                        //voice_control_motion(VOICE_CONTROL_LEFT);
+                }
+		else if (strstr(voice_recongnition_cmd, "右拐"))
+                {
+                        show_sys_info("语音控制：往【右】走...\n");
+                        //voice_control_motion(VOICE_CONTROL_RIGHT);
+                }
 		else if (strstr(voice_recongnition_cmd, "右转"))
 		{
 			show_sys_info("语音控制：往【右】走...\n");
@@ -618,16 +831,31 @@ static void voice_recognition_control()
 			show_sys_info("语音控制：停止\n");
 			//voice_control_motion(VOICE_CONTROL_STOP);
 		}
+		else if (strstr(voice_recongnition_cmd, "开"))
+		{
+			show_sys_info("语音控制：开灯\n");
+			//open_cam_light();
+		}
+		else if (strstr(voice_recongnition_cmd, "关"))
+		{
+			show_sys_info("语音控制：关灯\n");
+			//close_cam_light();
+		}
+		else if (strstr(voice_recongnition_cmd, "状态") || strstr(voice_recongnition_cmd, "环境"))
+		{
+			show_sys_info("语音控制：播放当前机器人状态\n");
+			//speech_robot_condition();
+		}
 		else
 		{	
-			printf("你说了这些话：‘%s’, 不过我没听懂~\n", voice_recongnition_cmd);	
+			printf("你说了这些话：‘%s’, 不过这不能控制我哦，但我可以跟你讲话~\n", voice_recongnition_cmd);	
 
 			/*
                          * 当听不懂控制指令的时候，进行语音输出，智能聊天
                          */
 
 			//1、智能回复（仅文字）
-			char recv_text[200];
+			char recv_text[1024];
 			memset(recv_text, 0, sizeof(recv_text));
 			char recv_code[10];
 			memset(recv_code, 0, sizeof(recv_code));
@@ -637,32 +865,41 @@ static void voice_recognition_control()
 				goto exit_;
 			}			
 			show_sys_info("智能聊天文字内容："); show_sys_info(recv_text); show_sys_info("\n");
-		
-			//2、合成语音
-			int ret = MSP_SUCCESS;
-			ret = text_to_speech(recv_text, "/home/pi/4_robot_test/wav/compose_voice_temp/compose_voice.wav");
-			if (MSP_SUCCESS != ret)
+
+			//因为科大讯飞账号是试用版，长度应该有限制，把它分开播放
+			if (strlen(recv_text) < 1024)  
 			{
-				printf("语音合成：合成失败，无法输出语音！text_to_speech failed, error code: %d.\n", ret);
-				goto exit_;
+				//2、合成语音
+				int ret = MSP_SUCCESS;
+				ret = text_to_speech(recv_text, "/home/pi/VoiceRecognitionControlRobot/wav/compose_voice_temp/compose_voice_all.wav");
+				if (MSP_SUCCESS != ret)
+				{
+					printf("语音合成：合成失败，无法输出语音！text_to_speech failed, error code: %d.\n", ret);
+					goto exit_;
+				}
+				//3、语音输出
+				//system("omxplayer -o local /home/pi/0_robot_client/wav/compose_voice_temp/compose_voice.wav");
+				//kill_omxplayer();
+				voice.sound_box_ongoing = TRUE;
+				pid_t omxplayer_pid;
+				if ((omxplayer_pid = fork()) < 0)
+		       		{
+					voice.sound_box_ongoing = FALSE;
+                			show_sys_info("创建播放音频进程失败！\n");
+                			goto exit_;
+        			}
+        			else if	 (omxplayer_pid == 0)  
+        			{
+                			show_sys_info("语音输出：正在说话...\n");
+                			if (execlp("/bin/bash", "/bin/bash", "-c", "omxplayer --no-osd -o local /home/pi/VoiceRecognitionControlRobot/wav/compose_voice_temp/compose_voice_all.wav", NULL) < 0)
+                			{
+                        			show_sys_info("播放声音进程执行失败！\n");
+                			}
+        			}
+				wait(0); //等待播放进程结束
+				voice.sound_box_ongoing = FALSE;
+					
 			}
-			//3、语音输出
-			//system("omxplayer -o local /home/pi/4_robot_test/wav/compose_voice_temp/compose_voice.wav");			
-			if ((omxplayer_pid = fork()) < 0)
-		        {
-                		show_sys_info("创建播放音频进程失败！\n");
-                		goto exit_;
-        		}
-        		else if (omxplayer_pid == 0)  //子进程执行录制音频
-        		{
-                		show_sys_info("语音输出：正在说话...\n");
-                		if (execlp("/bin/bash", "/bin/bash", "-c", "omxplayer -o local /home/pi/4_robot_test/wav/compose_voice_temp/compose_voice.wav", NULL) < 0)
-                		{
-                        		show_sys_info("播放声音进程执行失败！\n");
-                        		goto exit_;
-                		}
-				show_sys_info("语音输出：已经说完了...\n");
-        		}
 			show_sys_info("语音聊天：一次语音聊天结束！\n");
 		}
 	}
@@ -671,10 +908,12 @@ exit_:	show_sys_info("语音控制：一次语音识别结束！\n");
 	return ;
 }
 
+
+
 /*
  *功能：初始化语音模块
  */
-void voice_init()
+void voice_init(void)
 {
 	pinMode(VOICE_PIN, OUTPUT);
 	digitalWrite(VOICE_PIN, HIGH);
@@ -684,62 +923,229 @@ void voice_init()
 
 	memset(voice.open_record_voice_cmd, 0, sizeof(voice.open_record_voice_cmd));
 	memset(voice.voice_recongnition_cmd, 0, sizeof(voice.voice_recongnition_cmd));
+	voice.voice_main_switch = FALSE;
 	voice.recongnition_ongoing = FALSE;
 	voice.recongnition_switch = FALSE;
+	voice.sound_box_ongoing = FALSE;
+	//voice.omxplayer_pid = -1;
 	wiringPiISR(VOICE_DETECT_PIN, INT_EDGE_FALLING, &voice_recognition_control);
+
+	//if (mode == REMOTE_CONNECT_MODE)  //可以联网的模式
+	//{
+		int ret = MSP_SUCCESS;
+		char* login_params = "appid = 56ee43d0, work_dir = ."; // 登录参数，appid与msc库绑定,请勿随意改动		
+		/* 用户登录 */
+		ret = MSPLogin(NULL, NULL, login_params); //第一个参数是用户名，第二个参数是密码，均传NULL即可，第三个参数是登录参数	
+		if (MSP_SUCCESS != ret)
+		{
+			printf("MSPLogin failed (科大讯飞账号登陆失败！) , Error code %d.\n", ret);
+			show_sys_info("语音识别初始化失败！\n");
+			MSPLogout();                                      //退出登录
+			return ;	
+		}
+		
+		int upload_on =	0;       //是否上传用户词表，默认为关掉上传用户此表
+		if (upload_on)
+		{
+			show_sys_info("voice_recongnition: 上传用户词表 ...\n");
+			ret = upload_userwords();
+			if (MSP_SUCCESS != ret)
+			{
+				MSPLogout();                                      //退出登录
+				return ;
+			}	
+			show_sys_info("voice_recongnition: 上传用户词表成功\n");
+		}
+		voice.voice_main_switch = TRUE;
+		show_sys_info("voice初始化：语音识别系统启动.\n");
+	//}
+	//else
+	//{
+	//	show_sys_info("voice初始化：当前连接模式不支持语音识别！\n");
+	//}
 }
+
+
+/*
+ *功能：线程处理函数，在线程中开启语音识别，降低延时
+ *参数：无
+ *返回值：无
+ */
+void* open_voice_recognition_control_th(void *arg)
+{
+	//创建子进程输出语音提示“语音识别已经开启”
+	//kill_omxplayer(); //关掉正在播放的语音
+	voice.sound_box_ongoing = TRUE;
+	pid_t omxplayer_pid;
+	if ((omxplayer_pid = fork()) < 0)
+        {
+		voice.sound_box_ongoing = FALSE;
+        	show_sys_info("创建播放音频进程失败！\n");
+		return (void*)0;
+        }
+        else if (omxplayer_pid == 0)  //子进程执行录制音频
+        {
+                show_sys_info("语音输出：正在说话...\n");
+                if (execlp("/bin/bash", "/bin/bash", "-c", "omxplayer --no-osd -o local /home/pi/VoiceRecognitionControlRobot/wav/sys_voice/opened_voice_recongnition.wav", NULL) < 0)
+        	{
+           		show_sys_info("播放声音进程执行失败！\n");
+                }
+        }
+	wait(0);
+	
+	voice.sound_box_ongoing = FALSE;
+	voice.recongnition_ongoing = TRUE;            //设置语音识别状态为正在进行
+	
+	show_sys_info("语音识别控制已经开启...\n");	
+	voice.recongnition_switch = TRUE;
+
+	return (void*)0;
+}
+
 
 /*
  *功能：开启语音识别控制
  *返回值：成功返回0，失败返回-1
+ *说明：这个函数只是打开语音中断开关（recongnition_switch），打开后在检测到声音后才进行录音，识别。
  */
 int open_voice_recognition_control()
 {
-	if (voice.recongnition_switch)	//如果总中断开关已经打开，直接退出
+	if (voice.voice_main_switch == FALSE) //如果语音总开关没有打开，即语音初始化失败，禁止一切！
+	{
+		return 0;	
+	}
+	if (voice.recongnition_switch)	//如果语音中断中断开关已经打开，直接退出
 	{
 		return 0;
 	}
 	
-	int ret = MSP_SUCCESS;
-	char* login_params = "appid = 56ee43d0, work_dir = .";   // 登录参数，appid与msc库绑定,请勿随意改动		
-	/* 用户登录 */
-	ret = MSPLogin(NULL, NULL, login_params); //第一个参数是用户名，第二个参数是密码，均传NULL即可，第三个参数是登录参数	
-	if (MSP_SUCCESS != ret)
-	{
-		printf("MSPLogin failed (科大讯飞账号登陆失败！) , Error code %d.\n", ret);
-		MSPLogout();                                      //退出登录
-		return -1;	
-	}
+	//设置线程分离属性，以分离状态启动线程，在线程结束后会自动释放所占用的系统资源
+        pthread_attr_t attr;
+        pthread_attr_init(&attr);
+        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
+	pthread_t th; //线程标识符
+        int err;
+        if ((err = pthread_create(&th, &attr, open_voice_recognition_control_th, (void*)0)) != 0)
+        {
+                perror("servo_pulse_v_down pthread create error");
+        }
+        pthread_attr_destroy(&attr); //销毁线程属性结构体	
 	
-	int upload_on =	0;       //是否上传用户词表，默认为关掉上传用户此表
-	if (upload_on)
+}
+
+
+/*
+ * 功能：线程处理函数，在线程中关闭语音识别，降低延时
+ * 参数：无
+ * 返回值：无
+ */
+void* close_voice_recongnition_control_th(void *arg)
+{		
+	if (voice.recongnition_switch == TRUE)
 	{
-		show_sys_info("voice_recongnition: 上传用户词表 ...\n");
-		ret = upload_userwords();
-		if (MSP_SUCCESS != ret)
-		{
-			MSPLogout();                                      //退出登录
-			return -1;
-		}	
-		show_sys_info("voice_recongnition: 上传用户词表成功\n");
+		voice.recongnition_switch = FALSE;
+		close_voice_light();
+	
+		//创建子进程输出语音提示“语音识别已经开启”
+		//kill_omxplayer(); //关掉正在播放的语音
+		voice.sound_box_ongoing = TRUE;
+		pid_t omxplayer_pid;
+       		if ((omxplayer_pid = fork()) < 0)
+        	{
+			voice.sound_box_ongoing = FALSE;
+                	show_sys_info("创建播放音频进程失败！\n");
+			show_sys_info("语音识别控制已经关闭...\n");
+                	return (void*)0;
+       		}
+        	else if (omxplayer_pid == 0)  //子进程执行录制音频
+        	{       
+                	show_sys_info("语音输出：正在说话...\n");
+                	if (execlp("/bin/bash", "/bin/bash", "-c", "omxplayer --no-osd -o local /home/pi/VoiceRecognitionControlRobot/wav/sys_voice/closed_voice_recongnition.wav", NULL) < 0)
+                	{       
+                        	show_sys_info("播放声音进程执行失败！\n");
+                	}
+        	}
+        	wait(0);
+		voice.sound_box_ongoing = FALSE;
+		show_sys_info("语音识别控制已经关闭...\n");
+		return (void*)0;
 	}
 
-	voice.recongnition_switch = TRUE;
-	voice.recongnition_ongoing = TRUE;            //设置语音识别状态为正在进行
-	show_sys_info("语音识别控制已经开启...\n");	
+	return (void*)0;
 }
+
+/*
+ * 
+ * 在关闭信号中使用该函数
+ */
+void sys_close_voice_recongnition_control()
+{
+	if (voice.voice_main_switch == TRUE)
+	{
+		voice.recongnition_switch = FALSE;
+		voice.voice_main_switch = FALSE;
+		close_voice_light();
+		MSPLogout();                                      //退出登录
+		
+		/*
+		//创建子进程输出语音提示“语音识别已经开启”
+	        pid_t omxplayer_pid;
+       		if ((omxplayer_pid = fork()) < 0)
+        	{
+                	show_sys_info("创建播放音频进程失败！\n");
+			show_sys_info("语音识别控制已经关闭...\n");
+                	return ;
+       		}
+        	else if (omxplayer_pid == 0)  //子进程执行录制音频
+        	{       
+                	show_sys_info("语音输出：正在说话...\n");
+                	if (execlp("/bin/bash", "/bin/bash", "-c", "omxplayer --no-osd -o local /home/pi/0_robot_client/wav/sys_voice/closed_voice_recongnition.wav", NULL) < 0)
+                	{       
+                        	show_sys_info("播放声音进程执行失败！\n");
+                	}
+        	}
+        	wait(0);
+		show_sys_info("语音识别控制已经关闭...\n");
+		*/
+		show_sys_info("语音功能已经关闭！\n");
+		return ;
+	}
+
+	return ;
+}
+
 
 /*
  *功能：关闭语音识别控制
  */
 int close_voice_recongnition_control()
 {
-	if (voice.recongnition_switch == TRUE)
+	if (voice.voice_main_switch == FALSE)   //语音没有初始化成功，直接退出！
 	{
-		MSPLogout();                                      //退出登录
-		voice.recongnition_switch = FALSE;
-		close_voice_light();
-		show_sys_info("语音识别控制已经关闭...\n");
 		return 0;
 	}
+
+	if (voice.recongnition_switch == FALSE)  //语音中断开关已经关闭，直接退出！
+	{
+		return 0;
+	}		
+	
+	sys_close_voice_recongnition_control(); //先在这里关闭吧，其实应该在信号中使用，因为sys.c文件还没移植过来，暂时放这里	
+	/*
+         * 开启线程关闭语音识别
+         */
+	
+	//设置线程分离属性，以分离状态启动线程，在线程结束后会自动释放所占用的系统资源
+        pthread_attr_t attr;
+        pthread_attr_init(&attr);
+        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
+	pthread_t th; //线程标识符
+        int err;
+        if ((err = pthread_create(&th, &attr, close_voice_recongnition_control_th, (void*)0)) != 0)
+        {
+                perror("servo_pulse_v_down pthread create error");
+        }
+        pthread_attr_destroy(&attr); //销毁线程属性结构体
 }
