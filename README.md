@@ -28,7 +28,7 @@ sudo /home/pi/VoiceRecognitionControlRobot/bin/test
 
 # Principle introduction
 ## Program flow chart:
-![principle]( https://github.com/WhisperHear/Voice_Recognition_Control_Robot/blob/master/photos/principle.png )
+![principle]( https://github.com/WhisperHear/Voice_Recognition_Control_Robot/blob/master/photos/principle.jpg )
 
 
 # Contact me
