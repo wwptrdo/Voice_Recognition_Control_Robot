@@ -30,6 +30,8 @@ sudo /home/pi/VoiceRecognitionControlRobot/bin/test
 ## Program flow chart:
 ![principle]( https://github.com/WhisperHear/Voice_Recognition_Control_Robot/blob/master/photos/principle.jpg )
 
+## 4:中文说明：
+http://bbs.xfyun.cn/forum.php?mod=viewthread&tid=25926&extra=page%3D1%26filter%3Dreply%26orderby%3Dviews
 
 # Contact me
 #### If you have any questions, please contact me.
