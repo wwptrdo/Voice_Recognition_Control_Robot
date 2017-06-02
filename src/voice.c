@@ -31,6 +31,7 @@ static void show_sys_info(char *src)
 	/*在这里添加写入到日志文件的部分！*/
 }
 
+
 /* 合成的wav声音文件：默认wav音频头部数据 */
 static wave_pcm_hdr default_wav_hdr = 
 {
