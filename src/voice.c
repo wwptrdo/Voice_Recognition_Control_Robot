@@ -318,6 +318,26 @@ static void run_iat(const char* audio_file, const char* session_begin_params, ch
 		{
 			//！！！！日志信息打印函数未封装！下面的函数需要重写！！！！
 			printf("\nQISRAudioWrite failed! error code:%d\n", ret);
+			if (ret == 11201)
+			{
+				voice.sound_box_ongoing = TRUE;
+                                pid_t omxplayer_pid;
+                                if ((omxplayer_pid = fork()) < 0)
+                                {
+                                        voice.sound_box_ongoing = FALSE;
+                                        show_sys_info("创建播放音频进程失败！\n");
+                                }
+                                else if  (omxplayer_pid == 0)
+                                {
+                                        show_sys_info("语音输出：正在说话...\n");
+                                        if (execlp("/bin/bash", "/bin/bash", "-c", "omxplayer --no-osd -o local /home/pi/VoiceRecognitionControlRobot/wav/compose_voice_temp/compose_voice_all.wav", NULL) < 0)
+                                        {
+                                                show_sys_info("播放声音进程执行失败！\n");
+                                        }
+                                }
+                                wait(0); //等待播放进程结束
+                                voice.sound_box_ongoing = FALSE;
+			}
 			goto iat_exit;
 		}
 			
@@ -378,6 +398,27 @@ static void run_iat(const char* audio_file, const char* session_begin_params, ch
 			}
 			strncat(rec_result, rslt, rslt_len);
 		}
+		usleep(150*1000); //防止频繁占用CPU
+	}
+	strcpy(ret, rec_result);  //将语音转换的结果转出
+
+iat_exit:
+	if (NULL != f_pcm)
+	{
+		fclose(f_pcm);
+		f_pcm = NULL;
+	}
+	if (NULL != p_pcm)
+	{	free(p_pcm);
+		p_pcm = NULL;
+	}
+
+	QISRSessionEnd(session_id, hints);
+}
+
+/*
+ *功能：科大讯飞，语音合成，将文本转换为声音
+ *参数：src_text:文本
 		usleep(150*1000); //防止频繁占用CPU
 	}
 	strcpy(ret, rec_result);  //将语音转换的结果转出
@@ -1087,27 +1128,6 @@ void sys_close_voice_recongnition_control()
 		voice.voice_main_switch = FALSE;
 		close_voice_light();
 		MSPLogout();                                      //退出登录
-		
-		/*
-		//创建子进程输出语音提示“语音识别已经开启”
-	        pid_t omxplayer_pid;
-       		if ((omxplayer_pid = fork()) < 0)
-        	{
-                	show_sys_info("创建播放音频进程失败！\n");
-			show_sys_info("语音识别控制已经关闭...\n");
-                	return ;
-       		}
-        	else if (omxplayer_pid == 0)  //子进程执行录制音频
-        	{       
-                	show_sys_info("语音输出：正在说话...\n");
-                	if (execlp("/bin/bash", "/bin/bash", "-c", "omxplayer --no-osd -o local /home/pi/0_robot_client/wav/sys_voice/closed_voice_recongnition.wav", NULL) < 0)
-                	{       
-                        	show_sys_info("播放声音进程执行失败！\n");
-                	}
-        	}
-        	wait(0);
-		show_sys_info("语音识别控制已经关闭...\n");
-		*/
 		show_sys_info("语音功能已经关闭！\n");
 		return ;
 	}
