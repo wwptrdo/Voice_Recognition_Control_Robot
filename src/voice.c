@@ -1186,7 +1186,7 @@ void* open_voice_recognition_chat_control_th(void *arg)
 	//kill_omxplayer(); //关掉正在播放的语音
 	voice.sound_box_ongoing_flag--;              //不允许录音
 	
-	system("aplay /home/pi/0_robot_client/wav/sys_voice/opened_voice_recongnition.wav");
+	system("aplay /home/pi/VoiceRecognitionControlRobot/wav/sys_voice/opened_voice_recongnition.wav");
 	voice.sound_box_ongoing_flag++;
 
 	voice.recongnition_switch = SWITCH_ON;
@@ -1256,7 +1256,7 @@ void* close_voice_recongnition_chat_control_th(void *arg)
 		//kill_omxplayer(); //关掉正在播放的语音
 		voice.sound_box_ongoing_flag--;
 		
-		system("aplay /home/pi/0_robot_client/wav/sys_voice/closed_voice_recongnition.wav");
+		system("aplay /home/pi/VoiceRecognitionControlRobot/wav/sys_voice/closed_voice_recongnition.wav");
 		voice.sound_box_ongoing_flag++;
 		return (void*)0;
 	}
