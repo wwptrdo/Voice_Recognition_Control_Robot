@@ -20,6 +20,14 @@
 
 static Voice voice;
 
+static void show_sys_info(char *str)
+{
+	printf("%s", str);
+	/*
+	 * 这个地方添加写入日志文件的操作！
+	 */
+}
+
 /* 合成的wav声音文件：默认wav音频头部数据 */
 static wave_pcm_hdr default_wav_hdr = 
 {
