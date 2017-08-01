@@ -594,7 +594,7 @@ static int smart_reply(char* send_text, char *recv_text, int recv_text_size, cha
          *code和text的含义请去图灵官网查看，还有好多的类型。。。
          */
 
-         char *p = strstr(buff+150, "code");    //如果此时p不为null,则指向‘c’，从第150个开始查找，应该能提高速度吧~
+         char *p = strstr(buff+100, "code");    //如果此时p不为null,则指向‘c’，从第150个开始查找，应该能提高速度吧~
          if (p == NULL)
          {
                  return -1;
