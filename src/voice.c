@@ -1,11 +1,12 @@
 /*
  * author: WhisperHear <1348351139@qq.com>
  * github: https://github.com/WhisperHear
- * date:   2017.07.30
+ * date:   2017.12.26
  * brief:
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * version 3 as published by the Free Software Foundation.
+ *
  */
  
 #include "voice/voice.h"
@@ -257,10 +258,12 @@ static int text_to_speech(const char* src_text)
         unsigned int audio_len    = 0;
         wave_pcm_hdr wav_hdr      = default_wav_hdr;
         int          synth_status = MSP_TTS_FLAG_STILL_HAVE_DATA;
-	const char* params = "voice_name = xiaoyan, text_encoding = utf8, sample_rate = 16000, speed = 50, volume = 50, pitch = 50, rdn = 2";
+	//const char* params = "voice_name = xiaoyan, text_encoding = utf8, sample_rate = 16000, speed = 50, volume = 50, pitch = 50, rdn = 2";
 
 	/* 开始合成 */
-        sessionID = QTTSSessionBegin(params, &ret);
+	pthread_mutex_lock(&(voice.mutex_voice_params)); //申请锁
+        sessionID = QTTSSessionBegin(voice.output_voice_params, &ret);
+	pthread_mutex_unlock(&(voice.mutex_voice_params)); //释放锁
         if (MSP_SUCCESS != ret)
         {
                 printf("QTTSSessionBegin failed, error code: %d.\n", ret);
@@ -286,8 +289,8 @@ static int text_to_speech(const char* src_text)
 
         int flag = 0; //这个用来遍历获取的音频
         int first = 1;
-        while (1)
-        {
+        while (voice.sound_box_ongoing_flag >= 0)  //当前音箱资源没有被占用（可以播放声音）
+	{
                 /* 获取合成音频 */
                 const void* data = QTTSAudioGet(sessionID, &audio_len, &synth_status, &ret);
                 if (MSP_SUCCESS != ret)
@@ -321,10 +324,12 @@ static int text_to_speech(const char* src_text)
                         pcm_size += audio_len;
 
                         //播放
-                        while (1)
-                        {
+                        while (voice.sound_box_ongoing_flag >= 0)
+			{
+				voice.sound_box_ongoing_flag--; //占用资源，减一
                                 if ((flag + 1024) > pcm_size)
                                 {
+					voice.sound_box_ongoing_flag++;
                                         //show_sys_info("实时播放语音日志：读取的剩余的音频文件不足1024大小，请继续接收！\n");
                                         break;
                                 }
@@ -348,6 +353,7 @@ static int text_to_speech(const char* src_text)
                                 }
                                 //printf("一帧数据播放完毕！buffer大小：%d,  frames大小：%d\n", size, frames);
                                 flag += 1024;
+				voice.sound_box_ongoing_flag++;
                         }
 
                         wav_hdr.data_size += audio_len; //计算data_size大小
@@ -387,6 +393,52 @@ static int text_to_speech(const char* src_text)
 
 
 /*
+ * 功能：设置输出声音的参数
+ * 说明：voice_name：发音人，不同的发音人代表了不同的音色，如男声、女声、童声等，详细请参照《发音人列表》（photos目录）
+ * 	 speed：语速，合成音频对应的语速，取值范围：[0,100]，数值越大语速越快。
+ *       volume：音量，合成音频的音量，取值范围：[0,100]，数值越大音量越大。
+ *       pitch：语调，	合成音频的音调，取值范围：[0,100]，数值越大音调越高。
+ *       bgm：背景音，合成音频中的背景音，支持参数：0：无背景音乐，1：有背景音乐 
+ *
+ * 返回值：成功返回0，失败返回-1
+ */
+int set_voice_params(char *voice_name, int speed, int volume, int pitch, int bgm)
+{
+	if(strlen(voice_name) > 15 || speed>100 || speed<0 || volume>100 || volume<0 || pitch>100 || pitch<0 || bgm<0||bgm>1)
+		return -1; //参数出错
+	//voice_name = xiaoyan, text_encoding = utf8, sample_rate = 16000, speed = 50, volume= 50, pitch = 50, rdn = 2"
+	char s_speed[10] = {0};
+	sprintf(s_speed, "%d", speed);
+	char s_volume[10] = {0};
+	sprintf(s_volume, "%d", volume);
+	char s_pitch[10] = {0};
+	sprintf(s_pitch, "%d", pitch);
+
+
+	pthread_mutex_lock(&(voice.mutex_voice_params)); //申请锁
+	
+	memset(voice.output_voice_params, 0, sizeof(voice.output_voice_params));
+	strcat(voice.output_voice_params, "voice_name = ");
+	strcat(voice.output_voice_params, voice_name); //注意：如果当前名字不符合科大讯飞提供的名字，系统会出错，这里不进行正确检查
+	strcat(voice.output_voice_params, ", text_encoding = utf8, sample_rate = 16000, ");
+	strcat(voice.output_voice_params, "speed = ");
+	strcat(voice.output_voice_params, s_speed);
+	strcat(voice.output_voice_params, ", volume = ");
+	strcat(voice.output_voice_params, s_volume);
+	strcat(voice.output_voice_params, ", pitch = ");
+	strcat(voice.output_voice_params, s_pitch);
+	if (bgm == 0)
+		strcat(voice.output_voice_params, ", rdn = 2, background_sound = 0");
+	else
+		strcat(voice.output_voice_params, ", rdn = 2, background_sound = 1");
+	
+	pthread_mutex_unlock(&(voice.mutex_voice_params)); //释放锁
+	
+	return 0;
+}
+
+
+/*
  * 功能：设置voice的工作模式
  * 说明：远程连接模式：可以支持语音聊天控制
 	     wifi连接模式：仅仅支持蜂鸣器报警
@@ -406,7 +458,7 @@ int set_voice_mode(int mode)
                 strcat(login_params, "appid = ");
                 strcat(login_params, voice.xfyun_appid);
                 strcat(login_params, ", work_dir = .");
-				
+		
                 /* 用户登录 */
                 ret = MSPLogin(NULL, NULL, login_params); //第一个参数是用户名，第二个参数是密码，均传NULL即可，第三个参数是登录参数    
                 if (MSP_SUCCESS != ret)
@@ -429,6 +481,12 @@ int set_voice_mode(int mode)
                         }
                         show_sys_info("voice_recongnition: 上传用户词表成功\n");
                 }
+
+		//设置默认输出音频格式
+		pthread_mutex_lock(&(voice.mutex_voice_params)); //申请锁
+		memset(voice.output_voice_params, 0, sizeof(voice.output_voice_params));
+		strcpy(voice.output_voice_params, "voice_name = xiaoyan, text_encoding = utf8, sample_rate = 16000, speed = 50, volume = 50, pitch = 50, rdn = 2");
+		pthread_mutex_unlock(&(voice.mutex_voice_params)); //释放锁
                 voice.voice_main_switch = SWITCH_ON;
                 show_sys_info("voice设置启动模式：网络连接模式，语音识别系统启动.\n");
 		return 0;
@@ -461,7 +519,10 @@ void voice_init(int mode, const char *xfyun_appid, const char *tuling123_api_key
 	voice.voice_main_switch = SWITCH_OFF;
 	voice.recongnition_switch = SWITCH_OFF;
 	voice.sound_box_ongoing_flag = 0;
-	
+
+	pthread_mutex_init(&(voice.mutex_voice_params), NULL);  //默认属性初始化声音参数内存空间的线程锁
+
+	memset(voice.output_voice_params, 0, sizeof(voice.output_voice_params));
 	memset(voice.voice_recongnition_text, 0, sizeof(voice.voice_recongnition_text));
 	memset(voice.smart_reply_text, 0, sizeof(voice.smart_reply_text));
 	memset(voice.smart_reply_code, 0, sizeof(voice.smart_reply_code));
@@ -797,8 +858,8 @@ static int speech_recognition(char *rec_result, int rec_result_size)
 	int front_voice_zero_num = 0;          //检测到声音之前，音量连续为无的次数
 	int front_voice_counter_ongoing = 1;   //检测到声音之前的音量为无计数器，默认开启
 	int valume_threshold = 6;              //声音阀值，小于等于该阀值的声音将视为无声音
-        while (1)
-        {
+        while (voice.recongnition_switch == SWITCH_ON)
+	{
                 int ret = 0;
 	
 		//录制一次音频！大小为size(1024)
@@ -1168,15 +1229,12 @@ static int voice_chat_and_control(void)
         }
 	
 	//4、语音输出回复的内容！
-	voice.sound_box_ongoing_flag--;
 	if (text_to_speech(voice.smart_reply_text) < 0)
 	{
 		show_sys_info("语音输出回复内容出错：-1\n");
 		show_sys_info("一次语音聊天控制结束！\n");
-		voice.sound_box_ongoing_flag++;
 		return -1;
 	}
-	voice.sound_box_ongoing_flag++;
 	show_sys_info("一次语音聊天控制结束！\n");
 
         return 0;		
@@ -1190,16 +1248,14 @@ static int voice_chat_and_control(void)
  */
 void* open_voice_recognition_chat_control_th(void *arg)
 {
-	//创建子进程输出语音提示“语音识别已经开启”
-	//kill_omxplayer(); //关掉正在播放的语音
-	voice.sound_box_ongoing_flag--;              //不允许录音
+	//输出语音提示“语音识别已经开启”
 	
-	system("aplay /home/pi/VoiceRecognitionControlRobot/wav/sys_voice/opened_voice_recongnition.wav");
+	voice.sound_box_ongoing_flag--; //不允许录音
+	system("aplay ./wav/sys_voice/opened_voice_recongnition.wav");
 	voice.sound_box_ongoing_flag++;
-
+	
 	voice.recongnition_switch = SWITCH_ON;
 	show_sys_info("语音识别控制已经开启...\n");	
-
 
 	while (voice.recongnition_switch == SWITCH_ON)
 	{
@@ -1260,11 +1316,10 @@ void* close_voice_recongnition_chat_control_th(void *arg)
 		voice.recongnition_switch = SWITCH_OFF;
 		close_voice_light();
 	
-		//创建子进程输出语音提示“语音识别已经关闭”
-		//kill_omxplayer(); //关掉正在播放的语音
+		//输出语音提示“语音识别已经关闭”
 		voice.sound_box_ongoing_flag--;
 		
-		system("aplay /home/pi/VoiceRecognitionControlRobot/wav/sys_voice/closed_voice_recongnition.wav");
+		system("aplay ./wav/sys_voice/closed_voice_recongnition.wav");
 		voice.sound_box_ongoing_flag++;
 		return (void*)0;
 	}
@@ -1282,7 +1337,7 @@ void sys_close_voice_recongnition_chat_control()
 		voice.recongnition_switch = SWITCH_OFF;
 		voice.voice_main_switch = SWITCH_OFF;
 		close_voice_light();
-		MSPLogout();                                      //退出登录
+		MSPLogout();                                      //退出登录科大讯飞
 		
 		show_sys_info("语音功能已经关闭！\n");
 		return ;

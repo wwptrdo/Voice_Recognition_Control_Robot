@@ -7,7 +7,7 @@
  version 3 as published by the Free Software Foundation.
  */
 
-#include "voice/voice.h"
+#include "voice/voice_old.h"
 #include "voice/qisr.h"
 #include "voice/qtts.h"
 #include "voice/msp_cmn.h"

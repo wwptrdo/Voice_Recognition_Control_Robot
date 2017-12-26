@@ -1,7 +1,7 @@
 /*
  * author: WhisperHear <1348351139@qq.com>
  * github: https://github.com/WhisperHear
- * date:   2017.07.30
+ * date:   2017.12.26
  * brief:
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -39,6 +39,7 @@
 #define SMART_REPLY_CODE_LEN    10     //存放图灵机器人接口智能回复文字类型的空间大小
 #define CONDITION_TEXT_LEN      350    //存放机器人自身环境状态信息的空间的大小，如果添加了其他的环境信息记得增大此值，否则会造成溢出。
 #define ARECORD_PROCESS_CMD_LEN 117+USB_AUDIO_ADDR_LEN //录音进程命令字符数量
+#define PARAMS_LEN              1024   //输出语音的参数空间大小
 
 //科大讯飞语音读写需要
 #define BUFFER_SIZE     4096
@@ -47,15 +48,18 @@
 
 typedef struct {
 	int voice_main_switch;                       //声音总开关（如果语音初始化失败，则为关闭状态！）
-	int recongnition_switch;                     //标识当前是否打开中断进行语音识别 （高）
+	int recongnition_switch;                     //标识当前是否打开语音识别 （高）
 	int sound_box_ongoing_flag;                  //标识当前音箱状态，等于0为没有说话，小于0为正在说话
 	char voice_recongnition_text[BUFFER_SIZE];   //音频转换成文字后保存到这里
 	char smart_reply_text[SMART_REPLY_TEXT_LEN]; //放图灵机器人接口智能回复的文字
 	char smart_reply_code[SMART_REPLY_CODE_LEN]; //存放图灵机器人接口智能回复文字的类型，比如天气、股票、市场价格
 	char condition_text[CONDITION_TEXT_LEN];     //存放机器人自身环境状态信息的空间（播放时，就播放这些文字）
-	
+
+	char output_voice_params[PARAMS_LEN];        //音频输出的参数包括：发音人，语速，音量，语调，是否有背景音乐
+	pthread_mutex_t mutex_voice_params;	     //声音参数内存空间的线程锁
+
 	char tuling123_api_key[TULING123_API_KEY_LEN];             //图灵机器人API的key值（字符串长度暂定）
-    char xfyun_appid[XFYUN_APPID_LEN];                         //科大讯飞提供的树莓派开发包的appid; （字符串长度暂定）
+        char xfyun_appid[XFYUN_APPID_LEN];                         //科大讯飞提供的树莓派开发包的appid; （字符串长度暂定）
 	char usb_audio_addr[USB_AUDIO_ADDR_LEN];                   //USB声卡的地址信息（字符串长度暂定）
 }Voice;
 
@@ -63,20 +67,20 @@ typedef struct {
 typedef struct _wave_pcm_hdr
 {
 	char	riff[4];                // = "RIFF"
-	int		size_8;                 // = FileSize - 8
+	int	size_8;                 // = FileSize - 8
 	char	wave[4];                // = "WAVE"
 	char	fmt[4];                 // = "fmt "
-	int		fmt_size;				// = 下一个结构体的大小 : 16
+	int	fmt_size;		// = 下一个结构体的大小 : 16
 
 	short int       format_tag;             // = PCM : 1
 	short int       channels;               // = 通道数 : 1
-	int				samples_per_sec;        // = 采样率 : 8000 | 6000 | 11025 | 16000
-	int				avg_bytes_per_sec;      // = 每秒字节数 : samples_per_sec * bits_per_sample / 8
+	int		samples_per_sec;        // = 采样率 : 8000 | 6000 | 11025 | 16000
+	int		avg_bytes_per_sec;      // = 每秒字节数 : samples_per_sec * bits_per_sample / 8
 	short int       block_align;            // = 每采样点字节数 : wBitsPerSample / 8
 	short int       bits_per_sample;        // = 量化比特数: 8 | 16
 
 	char            data[4];                // = "data";
-	int				data_size;              // = 纯数据长度 : FileSize - 44 
+	int		data_size;              // = 纯数据长度 : FileSize - 44 
 } wave_pcm_hdr;
 
 

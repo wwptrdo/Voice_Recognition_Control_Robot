@@ -8,7 +8,7 @@
  */
 
 
-#include "voice/voice.h"
+#include "voice/voice_old.h"
 #include <stdio.h>
 #include <wiringPi.h>
 
