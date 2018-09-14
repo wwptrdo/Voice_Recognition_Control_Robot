@@ -1,11 +1,7 @@
 /*
- * author: WhisperHear <1348351139@qq.com>
- * github: https://github.com/WhisperHear
- * date:   2017.12.26
- * brief:
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 3 as published by the Free Software Foundation.
+ * author: wwptrdudu <1348351139@qq.com>
+ * github: https://github.com/wwptrdudu
+ * tg: @wwptrdudu
  */
 
 
