@@ -74,7 +74,6 @@ http://bbs.xfyun.cn/forum.php?mod=viewthread&tid=25926&extra=page%3D1%26filter%3
 
 ![params3]( https://github.com/WhisperHear/Voice_Recognition_Control_Robot/blob/master/photos/params3.jpg )
 
-
 # Contact me 
 #### If you have any questions, please contact me.
 #### tg: @wwptrdudu
