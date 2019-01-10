@@ -592,7 +592,7 @@ static int smart_reply(char* send_text, char *recv_text, int recv_text_size, cha
                                                         //字节序）
 
         //将IP地址转换为网络字节序
-        inet_pton(AF_INET, "182.92.110.58", &serveraddr.sin_addr.s_addr);
+        inet_pton(AF_INET, "39.107.192.176", &serveraddr.sin_addr.s_addr);
 
         /*步骤2；客户端调用connect函数连接到服务器端,注意需要把专用地址强转为通用地址*/
         if (connect(sockfd, (struct sockaddr*)&serveraddr, sizeof(serveraddr)) < 0)
@@ -1241,7 +1241,7 @@ static int voice_chat_and_control(void)
  *返回值：无
  *说明：此线程不能用pthread_cancel取消，否则会造成内存泄露
  */
-void* open_voice_recognition_chat_control_th(void *arg)
+static void* open_voice_recognition_chat_control_th(void *arg)
 {
 	//输出语音提示“语音识别已经开启”
 	
@@ -1304,7 +1304,7 @@ int open_voice_recognition_chat_control()
  * 参数：无
  * 返回值：无
  */
-void* close_voice_recongnition_chat_control_th(void *arg)
+static void* close_voice_recongnition_chat_control_th(void *arg)
 {		
 	if (voice.recongnition_switch == SWITCH_ON)
 	{
