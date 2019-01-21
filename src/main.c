@@ -29,7 +29,8 @@ int main(int argc, char *argv[])
 	{
 		sleep(60);	
 		set_voice_params("donaldduck", 50, 50, 50, 0);
-		printf("发音人改为：唐老鸭\n");		
+		printf("发音人改为：唐老鸭\n");	
+		
 
 		sleep(60);
 		set_voice_params("nannan", 50, 50, 50, 1);

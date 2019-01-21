@@ -55,7 +55,7 @@ http://bbs.xfyun.cn/forum.php?mod=viewthread&tid=25926&extra=page%3D1%26filter%3
 ## 三、 更新日志
 
 #### 【2019.01.10】
-   图灵机器人服务器的IP地址发生了更改，以前的IP已不能使用，已修复。
+   已修复一些bug。
 
 #### 【2017.12.26】
 
