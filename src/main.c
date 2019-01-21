@@ -16,6 +16,7 @@ int main(int argc, char *argv[])
 		printf("wiringPi init error!\n");
 		return -1;
 	}
+	
 	//参数：      网络连接标志   科大讯飞appid       图灵机器人KEY                    声卡地址
 	voice_init(NETWORK_CONNECTED, "56ee43d0", "44ee05352ba9459aaca3205c421f5e4c", "plughw:CARD=U0x46d0x825");
 
